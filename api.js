@@ -2,24 +2,44 @@
 
     var app = angular.module("githubViewer", []);
 
-    var MainController = function($scope, $http) {
-        var onUserComplete = function(response) {
-            $scope.user = response.data;
-            $http.get($scope.user.repos_url)
+    var MainController = function($scope, github, $interval, $log, $anchorScroll, $location) {
+        var onUserComplete = function(data) {
+            $scope.user = data;
+            github.getRepos($scope.user)
                 .then(onRepos, onError);
         };
 
-        var onRepos = function(response) {
-            $scope.repos = response.data;
+        var onRepos = function(data) {
+            $scope.repos = data;
+            $location.hash("userDetails");
+            $anchorScroll();
         };
 
         var onError = function(reason) {
             $scope.error = "Could not load the data";
         };
 
+        var decrementCountdown = function() {
+            $scope.countdown -= 1;
+            if ($scope.countdown < 1) {
+                $scope.search($scope.username);
+            }
+        };
+
         $scope.search = function(username) {
-            $http.get("https://api.github.com/users/" + username)
+            $log.info("Searching for " + username);
+            github.getUser(username)
                 .then(onUserComplete, onError);
+            if (countDownInterval) {
+                $interval.cancel(countDownInterval);
+                $scope.countdown = null;
+            }
+        };
+
+        var countDownInterval = null;
+
+        var startCountdown = function() {
+            countDownInterval = $interval(decrementCountdown, 1000, $scope.countdown);
         };
 
         $scope.username = "angular";
@@ -27,7 +47,11 @@
         $scope.repoSortOrder = "-stargazers_count";
 
         $scope.message = "Hello welcome to Github Viewer App";
+
+        $scope.countdown = 10;
+
+        startCountdown();
     };
 
-    app.controller("MainController", ["$scope", "$http", MainController]);
+    app.controller("MainController", ["$scope", "github", "$interval", "$log", "$anchorScroll", "$location", MainController]);
 }());
